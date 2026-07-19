@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>เกมตกปลา คำเป็น-คำตาย (Realistic Edition)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --water-top: #00b4db;
+            --water-bottom: #0083b0;
+            --sky-top: #56CCF2;
+            --sky-bottom: #2F80ED;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Prompt', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            background: url('https://i.ibb.co/40GTKKP/Chat-GPT-Image-19-2569-12-36-44.png') no-repeat center center;
+            background-size: cover;
+            user-select: none;
+        }
+
+        /* Glassmorphism UI */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        /* Animated Scenery */
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.05));
+            animation: drift linear infinite;
+        }
+        .cloud::before, .cloud::after {
+            content: '';
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+        }
+
+        @keyframes drift {
+            from { transform: translateX(-200px); }
+            to { transform: translateX(110vw); }
+        }
+
+        /* Water Surface Waves */
+        .wave-container {
+            position: absolute;
+            top: 50%; /* ปรับพื้นที่น้ำให้อยู่ครึ่งล่างของจอภาพ */
+            left: 0;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            z-index: 10;
+        }
+        
+        .water-bg {
+            display: none; /* ซ่อนสีน้ำเดิมเพื่อให้เห็นภาพพื้นหลัง */
+        }
+
+        .wave {
+            display: none; /* ซ่อนคลื่นเดิม */
+        }
+
+        /* Fish Entity */
+        .fish-entity {
+            position: absolute;
+            will-change: transform, left, top;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: crosshair;
+            transition: opacity 0.2s;
+        }
+
+        .fish-svg {
+            width: 100px;
+            height: 60px;
+            filter: drop-shadow(0 10px 8px rgba(0,0,0,0.2));
+            transition: transform 0.3s ease;
+        }
+
+        .fish-word-board {
+            background: linear-gradient(to bottom, #fff, #f0f0f0);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            color: #1e3a8a;
+            border: 2px solid #60a5fa;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.8);
+            margin-top: -5px;
+            font-size: 1.1rem;
+            white-space: nowrap;
+            pointer-events: none; /* Let clicks pass through to the fish */
+        }
+
+        /* Bubbles Particle System */
+        .bubble {
+            position: absolute;
+            bottom: -20px;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.2) 60%, rgba(255, 255, 255, 0) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: rise infinite ease-in;
+        }
+
+        @keyframes rise {
+            0% { transform: translateY(0) scale(0.5); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-100vh) scale(1.5); opacity: 0; }
+        }
+
+        /* Splash Effect */
+        .splash {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: white;
+            pointer-events: none;
+            animation: splashAnim 0.4s ease-out forwards;
+        }
+        @keyframes splashAnim {
+            0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(255,255,255,0.7); }
+            100% { transform: scale(3); opacity: 0; box-shadow: 0 0 0 20px rgba(255,255,255,0); }
+        }
+
+        /* Fishing Line */
+        #fishing-line {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        /* Hook */
+        #hook {
+            position: absolute;
+            width: 20px;
+            height: 30px;
+            pointer-events: none;
+            transform: translate(-50%, -100%);
+            z-index: 21;
+            transition: opacity 0.2s;
+        }
+
+        /* Floating Text Effects */
+        .floating-text {
+            position: absolute;
+            font-size: 1.8rem;
+            font-weight: 800;
+            pointer-events: none;
+            animation: floatUp 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            z-index: 60;
+            text-shadow: 0px 4px 10px rgba(0,0,0,0.3);
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(0.5); opacity: 0; }
+            20% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+            80% { transform: translateY(-60px) scale(1); opacity: 1; }
+            100% { transform: translateY(-80px) scale(0.8); opacity: 0; }
+        }
+
+        .correct-text { color: #10b981; -webkit-text-stroke: 1px #fff; }
+        .wrong-text { color: #ef4444; -webkit-text-stroke: 1px #fff; }
+
+        /* Camera Shake */
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(-15px, 15px) rotate(-2deg); background: rgba(239, 68, 68, 0.3); }
+            50% { transform: translate(15px, -15px) rotate(2deg); }
+            75% { transform: translate(-15px, -15px) rotate(-2deg); background: rgba(239, 68, 68, 0.3); }
+        }
+        .shake-screen { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+
+    </style>
+</head>
+<body>
+
+    <!-- จุดอ้างอิงเริ่มต้นของสายเอ็นตกปลา (วางตำแหน่งให้ตรงกับปลายคันเบ็ดในภาพ) -->
+    <div id="rod-tip" class="absolute top-[38%] left-[52%] w-2 h-2 rounded-full bg-transparent pointer-events-none z-20"></div>
+
+    <!-- Water Area (พื้นที่ตกปลาและให้ปลาว่าย) -->
+    <div id="water-area" class="wave-container cursor-crosshair">
+        <!-- Bubbles Container -->
+        <div id="bubbles-layer" class="absolute inset-0 pointer-events-none z-0"></div>
+        
+        <!-- Fishes Container -->
+        <div id="fishes-layer" class="absolute inset-0 z-10"></div>
+    </div>
+
+    <!-- Fishing Line SVG -->
+    <svg id="fishing-line" class="absolute inset-0 w-full h-full pointer-events-none z-30">
+        <line id="line-path" x1="0" y1="0" x2="0" y2="0" stroke="#374151" stroke-width="2" />
+    </svg>
+
+    <!-- Hook -->
+    <div id="hook">
+        <svg viewBox="0 0 20 30" class="w-full h-full drop-shadow-md">
+            <path d="M10 0 L10 20 A 5 5 0 0 0 15 15 L 13 13" fill="none" stroke="#d1d5db" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="10" cy="2" r="3" fill="#9ca3af"/>
+        </svg>
+    </div>
+
+    <!-- HUD / UI Layer -->
+    <div id="game-ui" class="absolute inset-0 z-40 hidden pointer-events-none">
+        
+        <!-- Target Mission (Centered) -->
+        <div class="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-auto">
+            <div class="glass-panel px-6 py-2 md:px-8 md:py-3 rounded-3xl border-4 border-yellow-400 transform hover:scale-105 transition shadow-[0_0_20px_rgba(250,204,21,0.4)] bg-white/70">
+                <h2 class="text-[10px] md:text-sm text-yellow-900 font-bold mb-1 text-center uppercase tracking-widest">เป้าหมายของคุณ</h2>
+                <div class="text-xl md:text-4xl font-black text-blue-900 drop-shadow-md text-center whitespace-nowrap" id="target-display">ตกเฉพาะ "คำเป็น"</div>
+            </div>
+        </div>
+
+        <!-- Stats (Right Aligned) -->
+        <div class="absolute top-4 right-4 flex flex-col sm:flex-row gap-2 md:gap-3 pointer-events-auto">
+            <div class="glass-panel px-3 py-2 md:px-6 md:py-3 rounded-2xl flex items-center gap-2 md:gap-3">
+                <div class="bg-blue-500 rounded-full p-1.5 md:p-2 text-white">
+                    <svg class="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                </div>
+                <div>
+                    <div class="text-[9px] md:text-xs text-blue-900 font-bold uppercase tracking-wider leading-none">คะแนน</div>
+                    <div id="score-display" class="text-xl md:text-3xl text-blue-700 font-black leading-none mt-1">0</div>
+                </div>
+            </div>
+            
+            <div class="glass-panel px-3 py-2 md:px-6 md:py-3 rounded-2xl flex items-center gap-2 md:gap-3">
+                <div class="bg-red-500 rounded-full p-1.5 md:p-2 text-white">
+                    <svg class="w-4 h-4 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>
+                </div>
+                <div>
+                    <div class="text-[9px] md:text-xs text-red-900 font-bold uppercase tracking-wider leading-none">พลังชีวิต</div>
+                    <div id="lives-display" class="flex gap-0.5 md:gap-1 text-sm md:text-xl mt-1 drop-shadow-md leading-none">❤️❤️❤️</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Start Screen Modal -->
+    <div id="start-screen" class="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div class="glass-panel bg-white/70 p-10 rounded-[40px] shadow-2xl max-w-lg w-[90%] text-center border-t-4 border-l-4 border-white/80">
+            <img src="ChatGPT Image 19 ก.ค. 2569 12_03_02.png" alt="Cover Game" class="w-full h-48 md:h-56 object-cover rounded-3xl mb-6 border-2 border-white/50 shadow-md">
+            
+            <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-cyan-500 mb-2 drop-shadow-sm">ตกปลาหรรษา</h1>
+            <h2 class="text-3xl font-bold text-blue-900 mb-8 bg-blue-100 inline-block px-6 py-2 rounded-full">คำเป็น - คำตาย</h2>
+            
+            <div class="text-left bg-white/60 p-6 rounded-2xl mb-8 text-gray-800 text-base md:text-lg border border-white/50 shadow-inner">
+                <h3 class="font-bold mb-3 text-blue-700 flex items-center gap-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    วิธีเล่น:
+                </h3>
+                <ul class="space-y-2 ml-2">
+                    <li class="flex items-start gap-2"><span class="text-blue-500">1.</span> ดูเป้าหมายด้านบนว่าต้องตก <b>"คำเป็น"</b> หรือ <b>"คำตาย"</b></li>
+                    <li class="flex items-start gap-2"><span class="text-blue-500">2.</span> <b>แตะที่บริเวณสระน้ำ</b> เพื่อเหวี่ยงเบ็ดไปเกี่ยวปลาที่ถูกต้อง</li>
+                    <li class="flex items-start gap-2"><span class="text-blue-500">3.</span> ตอบถูกได้ +10 คะแนน ตอบผิดเสียหัวใจ 1 ดวง</li>
+                </ul>
+            </div>
+            <button onclick="startGame()" class="w-full bg-gradient-to-r from-blue-500 via-blue-600 to-cyan-500 text-white font-bold text-2xl py-5 rounded-3xl shadow-[0_10px_20px_rgba(37,99,235,0.4)] hover:shadow-[0_15px_30px_rgba(37,99,235,0.6)] hover:-translate-y-1 transform transition duration-200 active:scale-95 border-b-4 border-blue-800 uppercase tracking-wider">
+                เริ่มตกปลา! 🎣
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md hidden">
+        <div class="bg-white p-10 rounded-[40px] shadow-2xl max-w-md w-[90%] text-center border-4 border-red-500 relative overflow-hidden">
+            <!-- Background Decoration -->
+            <div class="absolute -top-20 -right-20 w-40 h-40 bg-red-100 rounded-full opacity-50"></div>
+            
+            <div class="text-7xl mb-6 relative z-10 animate-bounce">😵</div>
+            <h1 class="text-5xl font-black text-red-600 mb-2 relative z-10 uppercase">จบเกม!</h1>
+            <p class="text-xl text-gray-600 mb-2 relative z-10 font-medium">คะแนนรวมของคุณคือ</p>
+            
+            <div class="bg-gray-100 rounded-3xl py-6 mb-8 relative z-10 border-2 border-gray-200 shadow-inner">
+                <span class="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-blue-500 to-blue-800" id="final-score">0</span>
+            </div>
+            
+            <button onclick="resetGame()" class="w-full bg-gradient-to-r from-emerald-400 to-emerald-600 text-white font-bold text-2xl py-5 rounded-3xl shadow-[0_10px_20px_rgba(16,185,129,0.4)] hover:shadow-[0_15px_30px_rgba(16,185,129,0.6)] hover:-translate-y-1 transform transition duration-200 active:scale-95 border-b-4 border-emerald-800 relative z-10">
+                เล่นอีกครั้ง 🔄
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Data Configuration
+        const wordPools = {
+            'คำเป็น': [
+                "มือ", "นา", "ปลา", "เรือ", "ช้าง", "ลิง", "ยาย",
+                "พ่อ", "แม่", "ดาว", "บ้าน", "ดิน", "ลม", "ควาย",
+                "ปู", "ดู", "ไฟ", "ไก่", "แมว", "เรียน", "น้อง" 
+            ],
+            'คำตาย': [
+                "นก", "รัก", "คิด", "ภาพ", "ชาติ", "ศพ", "เลข",
+                "โชค", "บาป", "จบ", "ลบ", "ปิด", "กัด", "วัด",
+                "มด", "รถ", "เมฆ", "ทัพ", "บัตร", "สิทธิ์", "เด็ก"
+            ]
+        };
+
+        // Different SVG paths for fish colors
+        const fishColors = [
+            { body: '#3B82F6', tail: '#2563EB', fin: '#60A5FA' }, // Blue
+            { body: '#F59E0B', tail: '#D97706', fin: '#FBBF24' }, // Orange
+            { body: '#10B981', tail: '#059669', fin: '#34D399' }, // Green
+            { body: '#EC4899', tail: '#DB2777', fin: '#F472B6' }, // Pink
+            { body: '#8B5CF6', tail: '#7C3AED', fin: '#A78BFA' }  // Purple
+        ];
+
+        // System Variables
+        let gameState = 'START'; 
+        let targetType = '';
+        let score = 0;
+        let lives = 3;
+        
+        let activeFishes = [];
+        let availableWords = { 'คำเป็น': [], 'คำตาย': [] };
+        
+        // Physics and Animation
+        let animationFrameId;
+        let lastTime = 0;
+        
+        // Fishing Line Mechanics
+        const rodTipX = window.innerWidth * 0.15; // Approx position
+        const rodTipY = window.innerHeight * 0.15; // Approx position
+        let fishingMechanic = {
+            state: 'idle', // idle, casting, reeling
+            x: 0,
+            y: 0,
+            targetX: 0,
+            targetY: 0,
+            speed: 1500, // pixels per second
+            hookedFish: null
+        };
+
+        // DOM Elements
+        const screens = {
+            start: document.getElementById('start-screen'),
+            game: document.getElementById('game-ui'),
+            over: document.getElementById('game-over-screen')
+        };
+        const displays = {
+            score: document.getElementById('score-display'),
+            lives: document.getElementById('lives-display'),
+            target: document.getElementById('target-display'),
+            finalScore: document.getElementById('final-score')
+        };
+        const containers = {
+            water: document.getElementById('water-area'),
+            fishes: document.getElementById('fishes-layer'),
+            bubbles: document.getElementById('bubbles-layer')
+        };
+        
+        const linePath = document.getElementById('line-path');
+        const hookVisual = document.getElementById('hook');
+        const rodTipEl = document.getElementById('rod-tip');
+
+        function getRodTipPos() {
+            const rect = rodTipEl.getBoundingClientRect();
+            return { x: rect.left, y: rect.top };
+        }
+
+        function startGame() {
+            screens.start.classList.add('hidden');
+            screens.game.classList.remove('hidden');
+            resetGame();
+        }
+
+        function resetGame() {
+            screens.over.classList.add('hidden');
+            
+            // Reset state
+            score = 0;
+            lives = 3;
+            
+            // Clear entities
+            containers.fishes.innerHTML = '';
+            containers.bubbles.innerHTML = '';
+            activeFishes = [];
+            fishingMechanic.state = 'idle';
+            fishingMechanic.hookedFish = null;
+            updateLineVisuals();
+            
+            // Refill pools
+            availableWords = {
+                'คำเป็น': [...wordPools['คำเป็น']],
+                'คำตาย': [...wordPools['คำตาย']]
+            };
+
+            setNewTarget();
+            updateUI();
+            
+            gameState = 'PLAYING';
+            
+            // Initial spawn
+            for(let i=0; i<5; i++) {
+                setTimeout(spawnFish, i * 600);
+            }
+
+            // Start Particle System
+            createBubbles();
+
+            // Start Loop
+            lastTime = performance.now();
+            cancelAnimationFrame(animationFrameId);
+            gameLoop(lastTime);
+        }
+
+        function setNewTarget() {
+            const types = ['คำเป็น', 'คำตาย'];
+            targetType = types[Math.floor(Math.random() * types.length)];
+            displays.target.innerHTML = `ตกเฉพาะ <span class="text-blue-700 bg-white px-2 py-1 rounded-lg">"${targetType}"</span>`;
+            
+            // Highlight effect
+            const panel = displays.target.parentElement;
+            panel.classList.add('scale-110', 'border-white');
+            setTimeout(() => panel.classList.remove('scale-110', 'border-white'), 300);
+        }
+
+        function updateUI() {
+            displays.score.innerText = score;
+            let hearts = '';
+            for(let i=0; i<3; i++) {
+                hearts += i < lives ? '❤️' : '🖤';
+            }
+            displays.lives.innerText = hearts;
+        }
+
+        function getWord(type) {
+            if (availableWords[type].length === 0) {
+                availableWords[type] = [...wordPools[type]];
+            }
+            const index = Math.floor(Math.random() * availableWords[type].length);
+            return availableWords[type].splice(index, 1)[0];
+        }
+
+        function createFishSVG(colorSet) {
+            return `
+                <svg viewBox="0 0 100 60" class="fish-svg" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Tail -->
+                    <path d="M 30 30 L 5 10 L 15 30 L 5 50 Z" fill="${colorSet.tail}"/>
+                    <!-- Body -->
+                    <path d="M 20 30 Q 20 5 60 10 Q 95 15 95 30 Q 95 45 60 50 Q 20 55 20 30 Z" fill="${colorSet.body}"/>
+                    <!-- Fin Top -->
+                    <path d="M 40 12 Q 55 -5 70 12" fill="${colorSet.fin}"/>
+                    <!-- Fin Bottom -->
+                    <path d="M 45 48 Q 55 65 65 48" fill="${colorSet.fin}"/>
+                    <!-- Eye -->
+                    <circle cx="75" cy="25" r="5" fill="#FFF"/>
+                    <circle cx="77" cy="25" r="2" fill="#000"/>
+                    <!-- Smile -->
+                    <path d="M 85 35 Q 90 40 80 42" fill="none" stroke="#FFF" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            `;
+        }
+
+        function spawnFish() {
+            if (gameState !== 'PLAYING') return;
+
+            // Ensure balance of targets
+            const targetCount = activeFishes.filter(f => f.type === targetType).length;
+            let typeToSpawn = (targetCount < 2) ? targetType : (Math.random() > 0.5 ? 'คำเป็น' : 'คำตาย');
+
+            const word = getWord(typeToSpawn);
+            const colorSet = fishColors[Math.floor(Math.random() * fishColors.length)];
+            
+            const fishEl = document.createElement('div');
+            fishEl.className = 'fish-entity';
+            
+            fishEl.innerHTML = `
+                ${createFishSVG(colorSet)}
+                <div class="fish-word-board">${word}</div>
+            `;
+            
+            containers.fishes.appendChild(fishEl);
+
+            // Positioning
+            const startRight = Math.random() > 0.5;
+            const waterRect = containers.water.getBoundingClientRect();
+            
+            let x = startRight ? waterRect.width + 50 : -100;
+            let y = Math.random() * (waterRect.height - 120) + 40; // Avoid top/bottom edges
+            
+            // Base Sine Wave properties
+            const speed = (Math.random() * 80 + 50); // pixels per second
+            const vx = startRight ? -speed : speed;
+            const amplitude = Math.random() * 30 + 10;
+            const frequency = Math.random() * 2 + 1;
+            const startY = y;
+            const timeOffset = Math.random() * 100;
+
+            const fishObj = {
+                id: Math.random().toString(36).substr(2, 9),
+                element: fishEl,
+                svg: fishEl.querySelector('.fish-svg'),
+                type: typeToSpawn,
+                word: word,
+                x: x,
+                y: y,
+                startY: startY,
+                vx: vx,
+                amplitude: amplitude,
+                frequency: frequency,
+                timeOffset: timeOffset,
+                isHooked: false
+            };
+
+            // Initial facing direction
+            if (vx < 0) {
+                fishObj.svg.style.transform = 'scaleX(1)';
+            } else {
+                fishObj.svg.style.transform = 'scaleX(-1)';
+            }
+
+            activeFishes.push(fishObj);
+        }
+
+        function createBubbles() {
+            if(gameState !== 'PLAYING') return;
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            const size = Math.random() * 15 + 5;
+            bubble.style.width = `${size}px`;
+            bubble.style.height = `${size}px`;
+            bubble.style.left = `${Math.random() * 100}%`;
+            bubble.style.animationDuration = `${Math.random() * 3 + 2}s`;
+            
+            containers.bubbles.appendChild(bubble);
+            
+            setTimeout(() => {
+                if(bubble.parentNode) bubble.remove();
+            }, 5000);
+            
+            setTimeout(createBubbles, Math.random() * 800 + 200);
+        }
+
+        // Interaction: Cast Line
+        containers.water.addEventListener('pointerdown', (e) => {
+            if (gameState !== 'PLAYING' || fishingMechanic.state !== 'idle') return;
+            
+            const waterRect = containers.water.getBoundingClientRect();
+            // Calculate absolute position
+            const clickX = e.clientX;
+            const clickY = e.clientY;
+
+            castLine(clickX, clickY);
+        });
+
+        function castLine(targetX, targetY) {
+            fishingMechanic.state = 'casting';
+            
+            const startPos = getRodTipPos();
+            fishingMechanic.x = startPos.x;
+            fishingMechanic.y = startPos.y;
+            fishingMechanic.targetX = targetX;
+            fishingMechanic.targetY = targetY;
+
+            // Visual Setup
+            hookVisual.style.opacity = '1';
+            
+            // Character animation (tilt rod slightly)
+            const fishermanSvg = document.getElementById('fisherman-svg');
+            if(fishermanSvg) {
+                fishermanSvg.style.transform = 'rotate(10deg)';
+                setTimeout(() => fishermanSvg.style.transform = 'rotate(0deg)', 200);
+            }
+        }
+
+        function createSplash(x, y) {
+            const splash = document.createElement('div');
+            splash.className = 'splash';
+            splash.style.left = `${x}px`;
+            splash.style.top = `${y}px`;
+            document.body.appendChild(splash);
+            setTimeout(() => splash.remove(), 500);
+        }
+
+        function gameLoop(currentTime) {
+            if (gameState !== 'PLAYING') return;
+
+            const dt = (currentTime - lastTime) / 1000; // Delta time in seconds
+            lastTime = currentTime;
+
+            updateFishes(dt, currentTime);
+            updateFishingMechanics(dt);
+            updateLineVisuals();
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function updateFishes(dt, currentTime) {
+            const waterRect = containers.water.getBoundingClientRect();
+
+            for (let i = activeFishes.length - 1; i >= 0; i--) {
+                let fish = activeFishes[i];
+                
+                if (fish.isHooked) continue; // Physics handled by hook
+
+                // Swimming logic (Sine wave)
+                fish.x += fish.vx * dt;
+                fish.y = fish.startY + Math.sin(currentTime / 1000 * fish.frequency + fish.timeOffset) * fish.amplitude;
+
+                // Despawn out of bounds
+                if ((fish.vx > 0 && fish.x > waterRect.width + 150) || 
+                    (fish.vx < 0 && fish.x < -150)) {
+                    fish.element.remove();
+                    activeFishes.splice(i, 1);
+                    setTimeout(spawnFish, 300);
+                    continue;
+                }
+
+                // Render position relative to water container
+                fish.element.style.transform = `translate(${fish.x}px, ${fish.y}px)`;
+            }
+        }
+
+        function updateFishingMechanics(dt) {
+            if (fishingMechanic.state === 'idle') return;
+
+            const rodPos = getRodTipPos();
+            
+            if (fishingMechanic.state === 'casting') {
+                // Move towards target
+                const dx = fishingMechanic.targetX - fishingMechanic.x;
+                const dy = fishingMechanic.targetY - fishingMechanic.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist < 10) {
+                    // Reached target
+                    fishingMechanic.x = fishingMechanic.targetX;
+                    fishingMechanic.y = fishingMechanic.targetY;
+                    createSplash(fishingMechanic.x, fishingMechanic.y);
+                    
+                    checkCatch();
+                    fishingMechanic.state = 'reeling'; // Automatically reel back
+                } else {
+                    const step = fishingMechanic.speed * dt;
+                    fishingMechanic.x += (dx / dist) * step;
+                    fishingMechanic.y += (dy / dist) * step;
+                }
+            } 
+            else if (fishingMechanic.state === 'reeling') {
+                // Move back to rod tip
+                const dx = rodPos.x - fishingMechanic.x;
+                const dy = rodPos.y - fishingMechanic.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist < 10) {
+                    // Reached rod
+                    processCatchResult();
+                    fishingMechanic.state = 'idle';
+                    hookVisual.style.opacity = '0';
+                    linePath.setAttribute('x2', rodPos.x);
+                    linePath.setAttribute('y2', rodPos.y);
+                } else {
+                    const step = fishingMechanic.speed * 0.8 * dt; // Slower reeling
+                    fishingMechanic.x += (dx / dist) * step;
+                    fishingMechanic.y += (dy / dist) * step;
+                    
+                    // Pull fish with it
+                    if (fishingMechanic.hookedFish) {
+                        const waterRect = containers.water.getBoundingClientRect();
+                        // Convert global hook pos back to local water container pos for fish
+                        fishingMechanic.hookedFish.x = fishingMechanic.x - waterRect.left - 50; // offset center
+                        fishingMechanic.hookedFish.y = fishingMechanic.y - waterRect.top;
+                        
+                        // Rotate fish to look like it's being pulled up
+                        fishingMechanic.hookedFish.svg.style.transform = 'rotate(-45deg)';
+                        fishingMechanic.hookedFish.element.style.transform = `translate(${fishingMechanic.hookedFish.x}px, ${fishingMechanic.hookedFish.y}px)`;
+                    }
+                }
+            }
+        }
+
+        function updateLineVisuals() {
+            const rodPos = getRodTipPos();
+            
+            if (fishingMechanic.state === 'idle') {
+                linePath.setAttribute('x1', rodPos.x);
+                linePath.setAttribute('y1', rodPos.y);
+                linePath.setAttribute('x2', rodPos.x);
+                linePath.setAttribute('y2', rodPos.y);
+                hookVisual.style.left = `${rodPos.x}px`;
+                hookVisual.style.top = `${rodPos.y}px`;
+            } else {
+                linePath.setAttribute('x1', rodPos.x);
+                linePath.setAttribute('y1', rodPos.y);
+                linePath.setAttribute('x2', fishingMechanic.x);
+                linePath.setAttribute('y2', fishingMechanic.y);
+                
+                hookVisual.style.left = `${fishingMechanic.x}px`;
+                hookVisual.style.top = `${fishingMechanic.y}px`;
+            }
+        }
+
+        function checkCatch() {
+            // Very simple AABB collision detection based on click point vs Fish Elements
+            const hitZoneSize = 60; // How forgiving the catch is
+            const waterRect = containers.water.getBoundingClientRect();
+            
+            // Convert hook global pos to local water pos
+            const localX = fishingMechanic.x - waterRect.left;
+            const localY = fishingMechanic.y - waterRect.top;
+
+            for (let i = 0; i < activeFishes.length; i++) {
+                let fish = activeFishes[i];
+                // Approximate center of fish
+                let fxCenter = fish.x + 50; 
+                let fyCenter = fish.y + 30;
+
+                const dx = localX - fxCenter;
+                const dy = localY - fyCenter;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+
+                if (dist < hitZoneSize) {
+                    // Hooked!
+                    fish.isHooked = true;
+                    fishingMechanic.hookedFish = fish;
+                    
+                    // Stop swimming
+                    fish.element.style.transition = 'none'; 
+                    break; // Only catch one
+                }
+            }
+        }
+
+        function showFloatingText(text, x, y, isCorrect) {
+            const el = document.createElement('div');
+            el.className = `floating-text ${isCorrect ? 'correct-text' : 'wrong-text'}`;
+            el.innerText = text;
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 1500);
+        }
+
+        function processCatchResult() {
+            const fish = fishingMechanic.hookedFish;
+            if (!fish) return; // Reeled in nothing
+
+            const rodPos = getRodTipPos();
+
+            if (fish.type === targetType) {
+                // Correct!
+                score += 10;
+                showFloatingText('+10 ยอดเยี่ยม!', rodPos.x, rodPos.y - 50, true);
+                
+                // Visual pop
+                fish.element.style.transition = 'transform 0.3s, opacity 0.3s';
+                fish.element.style.transform = `${fish.element.style.transform} scale(0)`;
+                fish.element.style.opacity = '0';
+                
+                // Maybe change target after 3 correct catches
+                if(score > 0 && score % 30 === 0) setNewTarget();
+                
+            } else {
+                // Wrong!
+                lives -= 1;
+                showFloatingText('❌ ผิดประเภท!', rodPos.x, rodPos.y - 50, false);
+                
+                // Screen shake
+                document.body.classList.add('shake-screen');
+                setTimeout(() => document.body.classList.remove('shake-screen'), 400);
+
+                fish.element.style.transition = 'transform 0.3s, opacity 0.3s';
+                fish.element.style.transform = `${fish.element.style.transform} scale(1.5)`;
+                fish.element.style.opacity = '0';
+
+                if (lives <= 0) {
+                    endGame();
+                }
+            }
+
+            updateUI();
+
+            // Cleanup
+            setTimeout(() => {
+                fish.element.remove();
+                const index = activeFishes.findIndex(f => f.id === fish.id);
+                if (index > -1) activeFishes.splice(index, 1);
+                fishingMechanic.hookedFish = null;
+                spawnFish(); // Replace the caught fish
+            }, 300);
+        }
+
+        function endGame() {
+            gameState = 'GAMEOVER';
+            cancelAnimationFrame(animationFrameId);
+            screens.game.classList.add('hidden');
+            screens.over.classList.remove('hidden');
+            displays.finalScore.innerText = score;
+            
+            // Clean up lines
+            fishingMechanic.state = 'idle';
+            updateLineVisuals();
+            hookVisual.style.opacity = '0';
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (gameState === 'PLAYING') {
+                // Snap line immediately to new rod pos
+                if(fishingMechanic.state === 'idle'){
+                    updateLineVisuals();
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>
